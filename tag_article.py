@@ -18,7 +18,7 @@ def _get_tags(text, confidence_thresh=0.69):
     except Exception as err:
         print(err)
         return []
-    return [tag.name for tag in res.categories if tag.confidence > confidence_thresh]
+    return [tag.name for tag in res.categories]
 
 def _insert_tags_bigquery(filename, tags):
     client = bigquery.Client()
@@ -56,8 +56,5 @@ def handle_article(data, context):
         text = blob.download_as_string()
     if text:
         tags = _get_tags(text)
-        if tags:
-            print("Found %d tags for article %s" % (len(tags), name))
-            _insert_tags_bigquery(name, tags)
-        else:
-            print("Got no tags for file gs://%s/%s" % (bucket, name))
+        print("Found %d tags for article %s" % (len(tags), name))
+        _insert_tags_bigquery(name, tags)

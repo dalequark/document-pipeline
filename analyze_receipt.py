@@ -46,45 +46,58 @@ def _extract_text(bucket_name, filename):
 
 def _analyze_receipt(bucket_name, filename):
     """ Given a gc location of a receipt file, extracts (when found)
-    the restaurant name, address, phone number, bill total (greatest
+    the name, address, phone number, bill total (greatest
     price listed on bill), and date.
     """
 
     text = _extract_text(bucket_name, filename)
+    if not text:
+        print(f"Couldn't extract text from gs://{bucket_name}/{filename}")
+        return
 
     entities = _extract_entities(text)
+    if not entities:
+        print(f"Couldn't extract entities from gs://{bucket_name}/{filename}")
+        return
 
     result = {}
 
-    # Extract the restaurant address.
+    # Extract the address.
     addrs = [x for x in entities if x['type'] == 'ADDRESS']
-    result['address'] = addrs[0]['name'] if 'name' in addrs[0] else ""
+    try:
+        result['address'] = addrs[0]['name']
+    except:
+        result['address'] = ""
 
+    # Extract prices/total
     prices = [x for x in entities if x['type'] == 'PRICE']
+
     # Assume the highest listed price is the total. This may not always be true
-    if len(prices):
+    try:
         total = max([float(x['metadata']['value']) for x in prices])
         result['total'] = total
-    else:
+    except:
         result['total'] = None
 
-    # Extract restaurant phone number.
+    # Extract phone number.
     phone_numbers = [x for x in entities if x['type'] == 'PHONE_NUMBER']
-    if len(phone_numbers) and 'name' in phone_numbers[0]:
+
+    try:
         result['phone_number'] = phone_numbers[0]['name']
         name = _get_name_from_phone(result['phone_number'])
         if name:
             result["name"] = name
         else:
             result["name"] = ""
-    else:
+    except:
         result['phone_number'] = ""
+        result["name"] = ""
 
     # Extract transaction date.
     dates = [x for x in entities if x['type'] == 'DATE']
-    if len(dates):
+    try:
         result['date'] = dates[0]['name']
-    else:
+    except:
         result['date'] = None
 
     return result
@@ -103,12 +116,7 @@ def analyze_receipt(data, context):
     bucket = data["bucket"]
     name = data["name"]
     result = _analyze_receipt(bucket, name)
+    print(result)
     if result:
         print("Inserting receipt gs://%s/%s into bigquery" % (bucket, name))
         _insert_receipt_bigquery(name, result["name"], result["date"], result["total"], result["address"], result["phone_number"])
-
-data = {
-    "bucket" : "receipts-123",
-    "name" : "receipt.jpg"
-}
-analyze_receipt(data, "")
