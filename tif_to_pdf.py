@@ -17,5 +17,3 @@ def convert_to_pdf(data, context):
     print(f"Uploading file with name {pdf_name} to bucket {os.environ['PDF_DIR']}")
     pdf_blob = pdf_bucket.blob(pdf_name)
     pdf_blob.upload_from_string(pdf, content_type="application/pdf")
-
-    ^([0-9]|[1-9][0-9]|[1-9][0-9][0-9]|[1-2][0-9][0-9][0-9])$
