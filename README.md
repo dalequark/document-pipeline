@@ -121,3 +121,5 @@ As you deploy, you'll need to set the environmental variables `ARTICLE_TAGS_TABL
 ## Step 6: Analyze
 
 Voila! You're done. Upload a file to your `gs://input-documents` and watch as its sorted and analyzed.
+
+**This is not an officially supported Google product**
