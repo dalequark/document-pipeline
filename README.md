@@ -15,6 +15,8 @@ For this project, you'll need to enable these GCP services:
 - Vision API
 - Places API
 
+![document pipeline architecture](https://github.com/dalequark/document-pipeline/blob/master/document_pipeline.png)
+
 ## Step 1: Create Storage Buckets
 
 First, you'll want to create a couple of [Storage Buckets](https://cloud.google.com/storage/docs/creating-buckets).
