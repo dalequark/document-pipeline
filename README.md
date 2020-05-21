@@ -60,7 +60,7 @@ I've hosted all this data at `https://console.cloud.google.com/storage/browser/d
 
 AutoML Natural Language is a tool that builds custom deep learning models from user-provided training data. It works with text and pdf files. This is what I used to build my document type classifier. [The docs](https://cloud.google.com/natural-language/automl/docs/beginners-guide) will show you how to train your own document classification model. When you're done training your model, Google Cloud will host the model for you. 
 
-To use your AutoML model in your app, you'll need to find your model id:
+To use your AutoML model in your app, you'll need to find your model name:
 
 `projects/YOUR LONG NUMBER/locations/us-central1/models/YOUR LONG MODEL ID NUMBER`
 
@@ -72,7 +72,7 @@ This document pipeline is designed so that when you upload files to an input buc
 
 After you've created this storage bucket and trained your AutoML model, you'll need to create a new [cloud function](https://cloud.google.com/functions/docs/quickstart-python) that runs every time a new file is uploaded to `gs://input-documents`.
 
-Create a new cloud function with the code in `sort_documents.py`. For this to work, you'll need to set several environmental variables in the Cloud Functions console, like `RECEIPTS_BUCKET`, `UNSORTED_BUCKET`, and `ARTICLES_BUCKET`. These should be the names of the corresponding buckets you created, without the preceeding `gs:` (i.e. `gs://reciepts` -> `receipts`). You'll also need to set the environmental variable `SORT_MODEL_NAME` to the model id we found in the last step.
+Create a new cloud function with the code in `sort_documents.py`. For this to work, you'll need to set several environmental variables in the Cloud Functions console, like `INVOICES_BUCKET`, `UNSORTED_BUCKET`, and `ARTICLES_BUCKET`. These should be the names of the corresponding buckets you created, without the preceding `gs:` (i.e. `gs://reciepts` -> `receipts`). You'll also need to set the environmental variable `SORT_MODEL_NAME` to the model name we found in the last step (that entire long path that ends in model id number).
 
 Once you've set up this function, documents uploaded to `gs://input_documents` (or whatever you've called your input document folder) will be classified and moved into the receipts, articles, or unsorted buckets respectively.
 

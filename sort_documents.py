@@ -19,9 +19,11 @@ from google.cloud.automl_v1.proto import service_pb2
 from google.cloud import storage
 from google.cloud import vision
 
+
 def _gcs_payload(bucket, filename):
-    uri = "gs://{bucket}/{filename}"
-    return {'document': {'input_config': {'gcs_source': {'input_uris': [uri] } } } }
+    uri = f"gs://{bucket}/{filename}"
+    return {'document': {'input_config': {'gcs_source': {'input_uris': [uri]}}}}
+
 
 def _extract_text(bucket, filename):
     uri = f"gs://{bucket}/{filename}"
@@ -32,17 +34,19 @@ def _extract_text(bucket, filename):
         print("OCR error " + str(res))
     return text
 
+
 def _img_payload(bucket, filename):
     print(f"Converting file gs://{bucket}/{filename} to text")
     text = _extract_text(bucket, filename)
     if not text:
         return None
-    return {'text_snippet': {'content': text, 'mime_type': 'text/plain'} }
+    return {'text_snippet': {'content': text, 'mime_type': 'text/plain'}}
 
-def _classify_doc(bucket, filename):
-    uri = "gs://%s/%s" % (bucket, filename)
+
+def classify_doc(bucket, filename):
     options = ClientOptions(api_endpoint='automl.googleapis.com')
-    prediction_client = automl_v1.PredictionServiceClient(client_options=options)
+    prediction_client = automl_v1.PredictionServiceClient(
+        client_options=options)
 
     _, ext = os.path.splitext(filename)
     if ext in [".pdf", "txt", "html"]:
@@ -50,21 +54,26 @@ def _classify_doc(bucket, filename):
     elif ext in ['.tif', '.tiff', '.png', '.jpeg', '.jpg']:
         payload = _img_payload(bucket, filename)
     else:
-        print(f"Could not sort document gs://{bucket}/{filename}, unsupported file type {ext}")
+        print(
+            f"Could not sort document gs://{bucket}/{filename}, unsupported file type {ext}")
         return None
     if not payload:
-        print(f"Missing document gs://{bucket}/{filename} payload, cannot sort")
+        print(
+            f"Missing document gs://{bucket}/{filename} payload, cannot sort")
         return None
-    request = prediction_client.predict(os.environ["SORT_MODEL_NAME"], payload, {})
-    label = max(request.payload, key = lambda x: x.classification.score)
-    if label.classification.score < 0.7:
-        print(f"Not sorting document but classification score {label.classification.score} is too low")
-    return label.display_name if label.classification.score >= 0.6 else None
+    request = prediction_client.predict(
+        os.environ["SORT_MODEL_NAME"], payload, {})
+    label = max(request.payload, key=lambda x: x.classification.score)
+    threshold = float(os.environ.get('SORT_MODEL_THRESHOLD')) or 0.7
+    displayName = label.display_name if label.classification.score > threshold else None
+    print(f"Labeled document gs://{bucket}/{filename} as {displayName}")
+    return displayName
+
 
 def sort_docs(data, context):
     bucket = data["bucket"]
     name = data["name"]
-    doc_type = _classify_doc(bucket, name)
+    doc_type = classify_doc(bucket, name)
     print(f"Labeled document gs://{bucket}/{name} as {doc_type}")
     return
     # Move the file to the appropriate bucket based on file type
@@ -73,7 +82,7 @@ def sort_docs(data, context):
     source_bucket = storage_client.bucket(bucket)
     source_blob = source_bucket.blob(name)
     if doc_type in ["invoice", "receipt", "budget"]:
-        dest_bucket_name = os.environ["RECEIPTS_BUCKET"]
+        dest_bucket_name = os.environ["INVOICES_BUCKET"]
     elif doc_type == "article":
         dest_bucket_name = os.environ["ARTICLES_BUCKET"]
     else:
@@ -82,11 +91,5 @@ def sort_docs(data, context):
 
     blob_copy = source_bucket.copy_blob(source_blob, dest_bucket, name)
     source_blob.delete()
-    print(f"Moved file gs://{bucket}/{name} to gs://{dest_bucket_name}/{blob_copy.name}")
-
-data = {
-    "bucket": "pdfs-out",
-    "name": "nyt_drug_prices.jpg"
-}
-
-sort_docs(data, None)
+    print(
+        f"Moved file gs://{bucket}/{name} to gs://{dest_bucket_name}/{blob_copy.name}")
