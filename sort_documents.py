@@ -25,7 +25,7 @@ def _gcs_payload(bucket, filename):
     return {'document': {'input_config': {'gcs_source': {'input_uris': [uri]}}}}
 
 
-def _extract_text(bucket, filename):
+def extract_text(bucket, filename):
     uri = f"gs://{bucket}/{filename}"
     client = vision.ImageAnnotatorClient()
     res = client.document_text_detection({'source': {'image_uri': uri}})
@@ -37,7 +37,7 @@ def _extract_text(bucket, filename):
 
 def _img_payload(bucket, filename):
     print(f"Converting file gs://{bucket}/{filename} to text")
-    text = _extract_text(bucket, filename)
+    text = extract_text(bucket, filename)
     if not text:
         return None
     return {'text_snippet': {'content': text, 'mime_type': 'text/plain'}}
@@ -85,6 +85,8 @@ def sort_docs(data, context):
         dest_bucket_name = os.environ["INVOICES_BUCKET"]
     elif doc_type == "article":
         dest_bucket_name = os.environ["ARTICLES_BUCKET"]
+    elif doc_type == "form":
+        dest_bucket_name = os.environ["FORMS_BUCKET"]
     else:
         dest_bucket_name = os.environ["UNSORTED_BUCKET"]
     dest_bucket = storage_client.bucket(dest_bucket_name)
