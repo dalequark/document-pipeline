@@ -18,26 +18,16 @@ from google.cloud import automl_v1
 from google.cloud.automl_v1.proto import service_pb2
 from google.cloud import storage
 from google.cloud import vision
+import utils
 
 
 def _gcs_payload(bucket, filename):
     uri = f"gs://{bucket}/{filename}"
     return {'document': {'input_config': {'gcs_source': {'input_uris': [uri]}}}}
 
-
-def extract_text(bucket, filename):
-    uri = f"gs://{bucket}/{filename}"
-    client = vision.ImageAnnotatorClient()
-    res = client.document_text_detection({'source': {'image_uri': uri}})
-    text = res.full_text_annotation.text
-    if not text:
-        print("OCR error " + str(res))
-    return text
-
-
 def _img_payload(bucket, filename):
     print(f"Converting file gs://{bucket}/{filename} to text")
-    text = extract_text(bucket, filename)
+    text = utils.extract_text(bucket, filename)
     if not text:
         return None
     return {'text_snippet': {'content': text, 'mime_type': 'text/plain'}}
@@ -70,18 +60,17 @@ def classify_doc(bucket, filename):
     return displayName
 
 
-def sort_docs(data, context):
+def sort_documents(data, context):
+    print("Hello from sort documenets")
     bucket = data["bucket"]
     name = data["name"]
+    print("Classifying doc")
     doc_type = classify_doc(bucket, name)
     print(f"Labeled document gs://{bucket}/{name} as {doc_type}")
-    return
-    # Move the file to the appropriate bucket based on file type
-    # TODO: add support for more document types
     storage_client = storage.Client()
     source_bucket = storage_client.bucket(bucket)
     source_blob = source_bucket.blob(name)
-    if doc_type in ["invoice", "receipt", "budget"]:
+    if doc_type in ["invoice", "invoice", "budget"]:
         dest_bucket_name = os.environ["INVOICES_BUCKET"]
     elif doc_type == "article":
         dest_bucket_name = os.environ["ARTICLES_BUCKET"]

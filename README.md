@@ -4,7 +4,7 @@ This repo provides code for building a document processing pipeline on GCP. It w
 
 1. Upload a document as text, as a pdf, or as an image to the cloud (in this case, a Google Cloud Storage bucket).
 2. The document gets tagged by type (i.e. "invoice," "article," etc) and then put into a new folder/storage bucket based on that type.
-3. Each document type is processed differently. A file that's moved to the "article" bucket gets tagged (i.e. Sports, Politics, Technology). A file that's moved the "receipts" folder gets analyze for prices, phone numbers, and other entities.
+3. Each document type is processed differently. A file that's moved to the "article" bucket gets tagged (i.e. Sports, Politics, Technology). A file that's moved the "invoices" folder gets analyze for prices, phone numbers, and other entities.
 4. Extracted data then gets put into a bigquery table.
 
 ## Step 0: Enable APIs
@@ -23,15 +23,15 @@ First, you'll want to create a couple of [Storage Buckets](https://cloud.google.
 
 Create one folder, something like `gs://input-documents`, where you'll initially upload your unsorted documemts.
 
-Next, create folders for each of the file types you want to move documents to. In this project, I have code to analyze receipts and articles, so I created three buckets:
+Next, create folders for each of the file types you want to move documents to. In this project, I have code to analyze invoices and articles, so I created three buckets:
 
 - `gs://articles`
-- `gs://receipts`
+- `gs://invoices`
 - `gs://unsorted-docs`
 
 ## Step 2: Create an AutoML Document Classification Model
 
-Next, you'll want to build a model that sorts documents by type, labeling them as receipts, invoices, articles, emails, and so on. To do this, I used the [RVL-CDIP dataset](https://www.cs.cmu.edu/~aharley/rvl-cdip/):
+Next, you'll want to build a model that sorts documents by type, labeling them as invoices, invoices, articles, emails, and so on. To do this, I used the [RVL-CDIP dataset](https://www.cs.cmu.edu/~aharley/rvl-cdip/):
 
 ![rvl-cdip-1](https://www.cs.cmu.edu/~aharley/rvl-cdip/images/sample1.png)
 ![rvl-cdip-2](https://www.cs.cmu.edu/~aharley/rvl-cdip/images/sample2.png)
@@ -40,7 +40,7 @@ Next, you'll want to build a model that sorts documents by type, labeling them a
 
 This huge dataset contains 400,000 grayscale document images in 16 classes.
 
-I also added some scanned receipt data from the [Scanned Receipts OCR and Information Extraction Dataset](https://rrc.cvc.uab.es/?ch=13).
+I also added some scanned invoice data from the [Scanned invoices OCR and Information Extraction Dataset](https://rrc.cvc.uab.es/?ch=13).
 
 Because this dataset combined was so huge and hard to work with, I just used a sample of documents with this breakdown of document type:
 
@@ -54,7 +54,7 @@ Because this dataset combined was so huge and hard to work with, I just used a s
 |invoice        | 900   |
 |letter         | 900   |
 |news           | 188   |
-|receipt        | 626   |
+|invoice        | 626   |
 
 I've hosted all this data at `https://console.cloud.google.com/storage/browser/doc-classification-training-data` (or `gs://doc-classification-training-data`). The training files, as `pdfs` and `txt` data, are in the `processed_files` folder. You'll need to copy those files to your own GCP project in order to train your own model. You'll also see a file `automl_input.csv` in the bucket. This is the `csv` file you'll use to import data into AutoML Natural Language.
 
@@ -72,16 +72,16 @@ This document pipeline is designed so that when you upload files to an input buc
 
 After you've created this storage bucket and trained your AutoML model, you'll need to create a new [cloud function](https://cloud.google.com/functions/docs/quickstart-python) that runs every time a new file is uploaded to `gs://input-documents`.
 
-Create a new cloud function with the code in `sort_documents.py`. For this to work, you'll need to set several environmental variables in the Cloud Functions console, like `INVOICES_BUCKET`, `UNSORTED_BUCKET`, and `ARTICLES_BUCKET`. These should be the names of the corresponding buckets you created, without the preceding `gs:` (i.e. `gs://reciepts` -> `receipts`). You'll also need to set the environmental variable `SORT_MODEL_NAME` to the model name we found in the last step (that entire long path that ends in model id number).
+Create a new cloud function with the code in `sort_documents.py`. For this to work, you'll need to set several environmental variables in the Cloud Functions console, like `INVOICES_BUCKET`, `UNSORTED_BUCKET`, and `ARTICLES_BUCKET`. These should be the names of the corresponding buckets you created, without the preceding `gs:` (i.e. `gs://reciepts` -> `invoices`). You'll also need to set the environmental variable `SORT_MODEL_NAME` to the model name we found in the last step (that entire long path that ends in model id number).
 
-Once you've set up this function, documents uploaded to `gs://input_documents` (or whatever you've called your input document folder) will be classified and moved into the receipts, articles, or unsorted buckets respectively.
+Once you've set up this function, documents uploaded to `gs://input_documents` (or whatever you've called your input document folder) will be classified and moved into the invoices, articles, or unsorted buckets respectively.
 
 There are two more cloud functions defined in this repository:
 
-- analyze_receipt.py
+- analyze_invoice.py
 - tag_article.py
 
-You'll want to create two new cloud functions that connects these scripts to your receipts and article buckets.
+You'll want to create two new cloud functions that connects these scripts to your invoices and article buckets.
 
 But first, you'll need to create a bigquery table to store the data extracted from those functions
 
@@ -94,7 +94,7 @@ But first, you'll need to create a bigquery table to store the data extracted fr
 | filename    |string|
 | tag         |string|
 
-Create a second table called something like `receipt_data` with the schema:
+Create a second table called something like `invoice_data` with the schema:
 
 | column name | type |
 |-------------|------|
@@ -114,9 +114,9 @@ For each of these tables, note the Table ID, which should be of the form:
 Now that you've created those BigQuery tables, you can deploy the cloud functions:
 
 - tag_article.py
-- analyze_receipt.py
+- analyze_invoice.py
 
-As you deploy, you'll need to set the environmental variables `ARTICLE_TAGS_TABLE` and `RECEIPTS_TABLE` respectively to their BigQuery table IDs. For the `analyze_receiept` cloud function, you'll also need to [create an API key](https://cloud.google.com/docs/authentication/api-keys and set the environmental varialbe `GOOGLE_API_KEY` to that key (this script uses the Google Places API to find information about businesses from their phone numbers).
+As you deploy, you'll need to set the environmental variables `ARTICLE_TAGS_TABLE` and `invoiceS_TABLE` respectively to their BigQuery table IDs. For the `analyze_receiept` cloud function, you'll also need to [create an API key](https://cloud.google.com/docs/authentication/api-keys and set the environmental varialbe `GOOGLE_API_KEY` to that key (this script uses the Google Places API to find information about businesses from their phone numbers).
 
 [This documentation](https://cloud.google.com/functions/docs/quickstart-python) shows you how to create a Python cloud function on Google Cloud. 
 
