@@ -46,7 +46,7 @@ def _insert_tags_bigquery(filename, tags):
 def tag_article(data, context):
     bucket = data["bucket"]
     name = data["name"]
-    ext = os.path.splitext(name)
+    ext = os.path.splitext(name)[1] if len(os.path.splitext(name)[1]) > 1 else None
     text = None
     if ext in ['.tif', '.tiff', '.png', '.jpeg', '.jpg']:
         print("Extracting text from image file")
@@ -59,6 +59,8 @@ def tag_article(data, context):
         bucket = storage_client.bucket(bucket)
         blob = bucket.blob(name)
         text = blob.download_as_string()
+    else:
+        print(f'Unsupported file type {ext}')
     if text:
         tags = get_tags(text)
         print("Found %d tags for article %s" % (len(tags), name))
